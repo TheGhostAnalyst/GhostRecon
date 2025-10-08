@@ -54,14 +54,14 @@ def scan_num(number):
             print(f"Is Possible Number: {is_poss}")
             seperator = '=' * 120
             with open('Number_Scan.txt', 'a') as f:
-                f.write(f"{seperator}\n")
-                f.write(f"Country Code: {country_code}")
-                f.write(f"National Number: {national_num}")
-                f.write(f"Timezone: {time_zone}")
-                f.write(f"Location: {location}")
-                f.write(f"Service provider: {service_prov}")
-                f.write(f"Is Valid Number: {is_valid}")
-                f.write(f"Is Possible Number: {is_poss}")
+                f.write(f"\n{seperator}\n")
+                f.write(f"Country Code: {country_code}\n")
+                f.write(f"National Number: {national_num}\n")
+                f.write(f"Timezone: {time_zone}\n")
+                f.write(f"Location: {location}\n")
+                f.write(f"Service provider: {service_prov}\n")
+                f.write(f"Is Valid Number: {is_valid}\n")
+                f.write(f"Is Possible Number: {is_poss}\n")
             time.sleep(3)
         else:
             print(f'Invalid number format {number}')
