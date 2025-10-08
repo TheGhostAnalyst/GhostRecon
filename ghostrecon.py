@@ -15,6 +15,11 @@ import os
 import subprocess
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
+import phonenumbers
+from phonenumbers import timezone
+from phonenumbers import geocoder
+from phonenumbers import carrier
+from phonenumbers import NumberParseException
 
 init()
 warnings.filterwarnings("ignore")
@@ -28,6 +33,42 @@ PROXIES = {
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
+def scan_num(number):
+    num_reg = re.compile(r"\+\d{1,2}\s?[-.]?\d{2,3}\s?[-.]?\d{2,3}\s?[-.]?\d{2,4}")
+    try:
+        if num_reg.match(number):
+            phone_no = phonenumbers.parse(number)
+            country_code = phone_no.country_code
+            national_num = phone_no.national_number
+            time_zone = timezone.time_zones_for_number(phone_no)
+            location = geocoder.description_for_number(phone_no, "en")
+            service_prov = carrier.name_for_number(phone_no, "en")
+            is_valid = phonenumbers.is_valid_number(phone_no)
+            is_poss =  phonenumbers.is_possible_number(phone_no)
+            print(f"Country Code: {country_code}")
+            print(f"National Number: {national_num}")
+            print(f"Timezone: {time_zone}")
+            print(f"Location: {location}")
+            print(f"Service provider: {service_prov}")
+            print(f"Is Valid Number: {is_valid}")
+            print(f"Is Possible Number: {is_poss}")
+            seperator = '=' * 120
+            with open('Number_Scan.txt', 'a') as f:
+                f.write(f"{seperator}\n")
+                f.write(f"Country Code: {country_code}")
+                f.write(f"National Number: {national_num}")
+                f.write(f"Timezone: {time_zone}")
+                f.write(f"Location: {location}")
+                f.write(f"Service provider: {service_prov}")
+                f.write(f"Is Valid Number: {is_valid}")
+                f.write(f"Is Possible Number: {is_poss}")
+            time.sleep(3)
+        else:
+            print(f'Invalid number format {number}')
+    except NumberParseException as e:
+        print(f"Error parsing number: {e}")
+        return
+    
 
 def get_whois_info(domain):                    
     result = subprocess.run(
@@ -400,6 +441,7 @@ credits: The Ghost Analyst
 [5] IP Info (Domain) → domain_addr.txt
 [6] Reverse DNS Lookup → hostnames.txt      
 [7] Whois Scan       → domain_whois.txt
+[8] Phone Number Scan → Number_Scan.txt
 ----------------------------
 """)
         ask = pyip.inputNum("""Make a choice:
@@ -410,8 +452,9 @@ credits: The Ghost Analyst
 5. IP Info (by Domain)
 6. Reverse DNS Lookup(from ip)
 7. Whois Scan
-8. Exit
-========= """, max=8, min=1)
+8. Phone Number Scan
+9. Exit
+========= """, max=9, min=1)
 
         if ask == 1:
             domain = input('Enter domain (e.g., example.com): ')
@@ -462,6 +505,11 @@ credits: The Ghost Analyst
             else:
                 print("Plese input a valid IP address.")
         elif ask == 8:
+            phone = input('Enter number to scan with country code (eg., +123XXXXXXX...): ')
+            print("Searching Database......")
+            time.sleep(1)
+            scan_num(phone)
+        elif ask == 9:
             print('Goodbye!')
             sys.exit()
 
