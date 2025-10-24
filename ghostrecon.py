@@ -33,6 +33,19 @@ PROXIES = {
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
+# -------------------------
+# helper: safe user-agent
+# -------------------------
+def get_random_ua():
+    """
+    Return a User-Agent string. Uses fake_useragent when available,
+    falls back to a stable common UA on error.
+    """
+    try:
+        return UserAgent().random
+    except Exception:
+        return "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36"
+
 def scan_num(number):
     num_reg = re.compile(r"^\+\d{1,2}\s?[-.]?\d{2,3}\s?[-.]?\d{2,3}\s?[-.]?\d{2,4}")
     try:
@@ -142,8 +155,7 @@ def subdomain_scan(domain):
     """
     Extracts subdomains from crt.sh JSON endpoint and optionally validates them.
     """
-    ua = UserAgent()
-    headers = {'User-Agent': ua.random}
+    headers = {'User-Agent': get_random_ua()}
     url = f'https://crt.sh/?q=%25.{domain}&output=json'
     seen, found, final_found = set(), [], []
 
@@ -230,8 +242,7 @@ def scan_directories(domain):
         domain = f'https://{domain}'
     if not domain.endswith('/'):
         domain += '/'
-    proxies = {'http': 'socks5h://127.0.0.1:9050',
-               'https': 'socks5h://127.0.0.1:9050'}
+    proxies = PROXIES
     session = requests.session()
     retries = Retry(
         total=3,
@@ -244,7 +255,7 @@ def scan_directories(domain):
     for dir in directories:
         url = domain + dir
         try:
-            headers = {'User-Agent': UserAgent().random}
+            headers = {'User-Agent': get_random_ua()}
             session.headers.update(headers)
             session.proxies.update(proxies)
             print(Fore.GREEN + f'[+] Scanning {url}........')
@@ -270,7 +281,7 @@ def scan_directories(domain):
     seperator = '=' * 120
     now = datetime.now().strftime('%Y:%m:%d %H:%M:%S')
     if found:
-        print(Fore.RED + f"\n[+] Found {len(found)} directories. Saved in Directory_Scans.txt")
+        print(Fore.GREEN + f"\n[+] Found {len(found)} directory(ies). Saved in Directory_Scans.txt")
         with open('Directory_Scans.txt', 'a') as f:
             f.write(f'{seperator}\n')
             f.write(f'Timestamp: {now}\n')
@@ -296,11 +307,8 @@ def extract_links(domain):
         # Session setup
         # -----------------------------
         s = requests.Session()
-        s.headers.update({'User-Agent': UserAgent().random})
-        proxies = {'http': 'socks5h://127.0.0.1:9050',
-               'https': 'socks5h://127.0.0.1:9050'}
-        if proxies:
-            s.proxies.update(proxies)
+        s.headers.update({'User-Agent': get_random_ua()})
+        s.proxies.update(PROXIES)
 
         retries = Retry(
             total=3,
@@ -327,7 +335,16 @@ def extract_links(domain):
             if final_link not in seen and final_link.startswith(('http://', 'https://')):
                 seen.add(final_link)
                 try:
-                    resp = s.get(final_link, timeout=(3, 10))
+                    # lightweight HEAD first, fall back to GET if HEAD not allowed or indicates error
+                    resp = None
+                    try:
+                        resp = s.head(final_link, timeout=(3, 10), allow_redirects=True)
+                    except requests.exceptions.RequestException:
+                        resp = None
+
+                    if not resp or resp.status_code >= 400:
+                        resp = s.get(final_link, timeout=(3, 10))
+
                     resp.raise_for_status()
                     found.append(final_link)
                     print(Fore.GREEN + f'[+] Valid link: {final_link}')
@@ -385,7 +402,8 @@ def get_ipaddr(ip):
 
 
 def getdomain_ipaddr(domain):
-    clean_domain = domain.replace("https://", "").replace("http://", "")
+    clean_domain = domain.replace("https://", "").replace("http://", "").strip().strip('/')
+    ip_address = None
     try:
         ip_address = socket.gethostbyname(clean_domain)
         print(f"\n[+] {domain} resolves to {ip_address}")
@@ -394,7 +412,12 @@ def getdomain_ipaddr(domain):
     seperator = '=' * 120
     with open('domain_addr.txt', 'a') as f:
         f.write(f'{seperator}\n')
-        f.write(f"[+] {domain} resolves to {ip_address}\n")
+        now = datetime.now().strftime('%Y:%m:%d %H:%M:%S')
+        f.write(f'[+] Timestamp: {now}\n')
+        if ip_address:
+            f.write(f"[+] {domain} resolves to {ip_address}\n")
+        else:
+            f.write(f"[!] Could not resolve {domain}\n")
         f.write(f'{seperator}\n\n')
 
 
